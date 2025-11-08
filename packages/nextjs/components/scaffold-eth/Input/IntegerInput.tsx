@@ -17,8 +17,6 @@ export const IntegerInput = ({
   variant = IntegerVariant.UINT256,
   disableMultiplyBy1e18 = false,
 }: IntegerInputProps) => {
-  const { resolvedTheme } = useTheme();
-  const isDarkMode = resolvedTheme === "dark";
   const [inputError, setInputError] = useState(false);
   const multiplyBy1e18 = useCallback(() => {
     if (!value) {
