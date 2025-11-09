@@ -1,5 +1,5 @@
 import { wagmiConnectors } from "./wagmiConnectors";
-import { Chain, createClient, fallback, http } from "viem";
+import { Chain, fallback, http } from "viem";
 import { mainnet } from "viem/chains";
 import { createConfig } from "wagmi";
 import scaffoldConfig, { DEFAULT_ALCHEMY_API_KEY } from "~~/scaffold.config";
@@ -14,14 +14,14 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
 
 export const wagmiConfig = createConfig({
   chains: enabledChains,
-  connectors: wagmiConnectors(),
-  autoConnect: false,
+  connectors: wagmiConnectors,
   ssr: true,
-  client({ chain }) {
+  transports: enabledChains.reduce((acc, chain) => {
     let rpcFallbacks = [http()];
 
     const rpcOverrides = (scaffoldConfig as { rpcOverrides?: Record<number, string> }).rpcOverrides;
     const rpcOverrideUrl = rpcOverrides?.[chain.id];
+    
     if (rpcOverrideUrl) {
       rpcFallbacks = [http(rpcOverrideUrl), http()];
     } else {
@@ -33,14 +33,14 @@ export const wagmiConfig = createConfig({
       }
     }
 
-    return createClient({
-      chain,
-      transport: fallback(rpcFallbacks),
+    acc[chain.id] = fallback(rpcFallbacks, {
       ...(chain.id !== (arbitrumNitro as Chain).id
         ? {
             pollingInterval: scaffoldConfig.pollingInterval,
           }
         : {}),
     });
-  },
+    
+    return acc;
+  }, {} as Record<number, ReturnType<typeof fallback>>),
 });
