@@ -15,6 +15,7 @@ export const enabledChains = targetNetworks.find((network: Chain) => network.id 
 export const wagmiConfig = createConfig({
   chains: enabledChains,
   connectors: wagmiConnectors(),
+  autoConnect: false,
   ssr: true,
   client({ chain }) {
     let rpcFallbacks = [http()];
