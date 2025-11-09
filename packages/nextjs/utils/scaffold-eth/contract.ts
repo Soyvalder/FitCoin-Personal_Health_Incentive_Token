@@ -13,7 +13,7 @@ import {
 } from "abitype";
 import type { ExtractAbiFunctionNames } from "abitype";
 import type { Simplify } from "type-fest";
-import type { MergeDeepRecord } from "type-fest/source/merge-deep";
+import type { Chain } from "viem";
 import {
   Address,
   Block,
@@ -39,29 +39,36 @@ type AddExternalFlag<T> = {
   };
 };
 
-const deepMergeContracts = <L extends Record<PropertyKey, any>, E extends Record<PropertyKey, any>>(
-  local: L,
-  external: E,
-) => {
-  const result: Record<PropertyKey, any> = {};
-  const allKeys = Array.from(new Set([...Object.keys(external), ...Object.keys(local)]));
+const deepMergeContracts = (
+  local: GenericContractsDeclaration,
+  external: GenericContractsDeclaration,
+): GenericContractsDeclaration => {
+  const result: Record<number, Record<string, any>> = {};
+  const allKeys = Array.from(new Set([...Object.keys(external), ...Object.keys(local)]))
+    .map(k => Number(k))
+    .filter(k => !Number.isNaN(k));
   for (const key of allKeys) {
-    if (!external[key]) {
-      result[key] = local[key];
+    const localForKey = local[key as keyof typeof local] as Record<string, any> | undefined;
+    const externalForKey = external[key as keyof typeof external] as Record<string, any> | undefined;
+    if (!externalForKey) {
+      if (localForKey) result[key] = localForKey;
       continue;
     }
     const amendedExternal = Object.fromEntries(
-      Object.entries(external[key] as Record<string, Record<string, unknown>>).map(([contractName, declaration]) => [
+      Object.entries(externalForKey as Record<string, Record<string, unknown>>).map(([contractName, declaration]) => [
         contractName,
         { ...declaration, external: true },
       ]),
     );
-    result[key] = { ...local[key], ...amendedExternal };
+    result[key] = { ...(localForKey || {}), ...amendedExternal };
   }
-  return result as MergeDeepRecord<AddExternalFlag<L>, AddExternalFlag<E>, { arrayMergeMode: "replace" }>;
+  return result as GenericContractsDeclaration;
 };
 
-const contractsData = deepMergeContracts(deployedContractsData, externalContractsData);
+const contractsData: GenericContractsDeclaration = deepMergeContracts(
+  deployedContractsData as GenericContractsDeclaration,
+  externalContractsData as GenericContractsDeclaration,
+);
 
 export type InheritedFunctions = { readonly [key: string]: string };
 
@@ -81,17 +88,11 @@ export type GenericContractsDeclaration = {
 
 export const contracts = contractsData as GenericContractsDeclaration | null;
 
-type ConfiguredChainId = (typeof scaffoldConfig)["targetNetworks"][0]["id"];
+type ContractsDeclaration = GenericContractsDeclaration;
 
-type IsContractDeclarationMissing<TYes, TNo> = typeof contractsData extends { [key in ConfiguredChainId]: any }
-  ? TNo
-  : TYes;
+type Contracts = ContractsDeclaration[number];
 
-type ContractsDeclaration = IsContractDeclarationMissing<GenericContractsDeclaration, typeof contractsData>;
-
-type Contracts = ContractsDeclaration[ConfiguredChainId];
-
-export type ContractName = keyof Contracts;
+export type ContractName = Extract<keyof Contracts, string>;
 
 export type Contract<TContractName extends ContractName> = Contracts[TContractName];
 
@@ -113,12 +114,10 @@ export type AbiFunctionOutputs<TAbi extends Abi, TFunctionName extends string> =
   TFunctionName
 >["outputs"];
 
-export type AbiFunctionReturnType<TAbi extends Abi, TFunctionName extends string> = IsContractDeclarationMissing<
-  any,
+export type AbiFunctionReturnType<TAbi extends Abi, TFunctionName extends string> =
   AbiParametersToPrimitiveTypes<AbiFunctionOutputs<TAbi, TFunctionName>> extends readonly [any]
     ? AbiParametersToPrimitiveTypes<AbiFunctionOutputs<TAbi, TFunctionName>>[0]
-    : AbiParametersToPrimitiveTypes<AbiFunctionOutputs<TAbi, TFunctionName>>
->;
+    : AbiParametersToPrimitiveTypes<AbiFunctionOutputs<TAbi, TFunctionName>>;
 
 export type AbiEventInputs<TAbi extends Abi, TEventName extends ExtractAbiEventNames<TAbi>> = ExtractAbiEvent<
   TAbi,
@@ -191,24 +190,23 @@ export type UseScaffoldReadConfig<
   contractName: TContractName;
   chainId?: AllowedChainIds;
   watch?: boolean;
-} & IsContractDeclarationMissing<
-  Partial<UseReadContractParameters>,
-  {
-    functionName: TFunctionName;
-  } & UseScaffoldArgsParam<TContractName, TFunctionName> &
-    Omit<UseReadContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">
->;
+} & (({
+  functionName: TFunctionName;
+} & UseScaffoldArgsParam<TContractName, TFunctionName>) | ({
+  functionName: string;
+  args?: readonly unknown[];
+})) & Omit<UseReadContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">;
 
 export type ScaffoldWriteContractVariables<
   TContractName extends ContractName,
   TFunctionName extends ExtractAbiFunctionNames<ContractAbi<TContractName>, WriteAbiStateMutability>,
-> = IsContractDeclarationMissing<
-  Partial<WriteContractParameters>,
-  {
-    functionName: TFunctionName;
-  } & UseScaffoldArgsParam<TContractName, TFunctionName> &
-    Omit<WriteContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">
->;
+> = (({
+  functionName: TFunctionName;
+} & UseScaffoldArgsParam<TContractName, TFunctionName>) | ({
+  functionName: string;
+  args?: readonly unknown[];
+  value?: bigint | undefined;
+})) & Omit<WriteContractParameters, "chainId" | "abi" | "address" | "functionName" | "args">;
 
 type WriteVariables = WriteContractVariables<Abi, string, any[], Config, number>;
 
@@ -236,54 +234,38 @@ export type UseScaffoldEventConfig<
   contractName: TContractName;
   eventName: TEventName;
   chainId?: AllowedChainIds;
-} & IsContractDeclarationMissing<
-  Omit<UseWatchContractEventParameters, "onLogs" | "address" | "abi" | "eventName"> & {
-    onLogs: (
-      logs: Simplify<
-        Omit<Log<bigint, number, any>, "args" | "eventName"> & {
-          args: Record<string, unknown>;
-          eventName: string;
-        }
-      >[],
-    ) => void;
-  },
-  Omit<UseWatchContractEventParameters<ContractAbi<TContractName>>, "onLogs" | "address" | "abi" | "eventName"> & {
-    onLogs: (
-      logs: Simplify<
-        Omit<Log<bigint, number, false, TEvent, false, [TEvent], TEventName>, "args"> & {
-          args: AbiParametersToPrimitiveTypes<TEvent["inputs"]> &
-            GetEventArgs<
-              ContractAbi<TContractName>,
-              TEventName,
-              {
-                IndexedOnly: false;
-              }
-            >;
-        }
-      >[],
-    ) => void;
-  }
->;
+} & Omit<UseWatchContractEventParameters<ContractAbi<TContractName>>, "onLogs" | "address" | "abi" | "eventName"> & {
+  onLogs: (
+    logs: Simplify<
+      Omit<Log<bigint, number, false, TEvent, false, [TEvent], TEventName>, "args"> & {
+        args: AbiParametersToPrimitiveTypes<TEvent["inputs"]> &
+          GetEventArgs<
+            ContractAbi<TContractName>,
+            TEventName,
+            {
+              IndexedOnly: false;
+            }
+          >;
+      }
+    >[],
+  ) => void;
+};
 
 type IndexedEventInputs<
   TContractName extends ContractName,
   TEventName extends ExtractAbiEventNames<ContractAbi<TContractName>>,
-> = Extract<AbiEventInputs<ContractAbi<TContractName>, TEventName>[number], { indexed: true }>;
+> = Extract<AbiEventInputs<ContractAbi<TContractName>, TEventName>[number], { indexed: true }> & AbiParameter;
 
 export type EventFilters<
   TContractName extends ContractName,
   TEventName extends ExtractAbiEventNames<ContractAbi<TContractName>>,
-> = IsContractDeclarationMissing<
-  any,
-  IndexedEventInputs<TContractName, TEventName> extends never
-    ? never
-    : {
-        [Key in IsContractDeclarationMissing<
-          any,
-          IndexedEventInputs<TContractName, TEventName>["name"]
-        >]?: AbiParameterToPrimitiveType<Extract<IndexedEventInputs<TContractName, TEventName>, { name: Key }>>;
-      }
->;
+> = IndexedEventInputs<TContractName, TEventName> extends never
+  ? never
+  : {
+      [Key in Extract<IndexedEventInputs<TContractName, TEventName>["name"], string>]?: AbiParameterToPrimitiveType<
+        Extract<IndexedEventInputs<TContractName, TEventName>, { name: Key }>
+      >;
+    };
 
 export type UseScaffoldEventHistoryConfig<
   TContractName extends ContractName,
@@ -293,7 +275,7 @@ export type UseScaffoldEventHistoryConfig<
   TReceiptData extends boolean = false,
 > = {
   contractName: TContractName;
-  eventName: IsContractDeclarationMissing<string, TEventName>;
+  eventName: TEventName;
   fromBlock?: bigint;
   toBlock?: bigint;
   chainId?: AllowedChainIds;
@@ -317,23 +299,30 @@ export type UseScaffoldEventHistoryData<
     TEventName
   >,
 > =
-  | IsContractDeclarationMissing<
-      any[],
-      {
-        args: AbiParametersToPrimitiveTypes<TEvent["inputs"]> &
-          GetEventArgs<
-            ContractAbi<TContractName>,
-            TEventName,
-            {
-              IndexedOnly: false;
-            }
-          >;
-        blockData: TBlockData extends true ? Block<bigint, true> : null;
-        receiptData: TReceiptData extends true ? GetTransactionReturnType : null;
-        transactionData: TTransactionData extends true ? GetTransactionReceiptReturnType : null;
-      } & Log<bigint, number, false, TEvent, false, [TEvent], TEventName>[]
-    >
+  | ({
+      args: AbiParametersToPrimitiveTypes<TEvent["inputs"]> &
+        GetEventArgs<
+          ContractAbi<TContractName>,
+          TEventName,
+          {
+            IndexedOnly: false;
+          }
+        >;
+      blockData: TBlockData extends true ? Block<bigint, true> : null;
+      receiptData: TReceiptData extends true ? GetTransactionReceiptReturnType : null;
+      transactionData: TTransactionData extends true ? GetTransactionReturnType : null;
+    } & Log<bigint, number, false, TEvent, false, [TEvent], TEventName>[])
   | undefined;
+
+// Shared config type for scaffold.config.ts
+export type ScaffoldConfig = {
+  targetNetworks: readonly Chain[];
+  pollingInterval: number;
+  alchemyApiKey?: string;
+  walletConnectProjectId?: string;
+  onlyLocalBurnerWallet?: boolean;
+  rpcOverrides?: Record<number, string>;
+};
 
 export type AbiParameterTuple = Extract<AbiParameter, { type: "tuple" | `tuple[${string}]` }>;
 

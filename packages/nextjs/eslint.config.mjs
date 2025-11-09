@@ -12,6 +12,18 @@ const compat = new FlatCompat({
 
 export default defineConfig([
   {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "**/*.less",
+      "**/*.css",
+      "**/*.scss",
+      "**/*.json",
+      "**/*.png",
+      "**/*.svg",
+      "**/generated/**/*",
+    ],
     plugins: {
       prettier: prettierPlugin,
     },
@@ -33,6 +45,12 @@ export default defineConfig([
     files: ["next-env.d.ts"],
     rules: {
       "@typescript-eslint/triple-slash-reference": "off",
+    },
+  },
+  {
+    files: ["tailwind.config.js"],
+    rules: {
+      "@typescript-eslint/no-require-imports": "off",
     },
   },
 ]);

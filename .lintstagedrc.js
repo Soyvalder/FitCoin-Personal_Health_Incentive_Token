@@ -1,16 +1,22 @@
 const path = require("path");
 
-const buildNextEslintCommand = (filenames) =>
-  `yarn next:lint --fix --file ${filenames
-    .map((f) => path.relative(path.join("packages", "nextjs"), f))
-    .join(" --file ")}`;
+const buildNextEslintCommand = (filenames) => {
+  // Procesar 1 archivo a la vez para evitar el error
+  return filenames.map((filename) => {
+    const relativePath = path.relative(path.join("packages", "nextjs"), filename);
+    return `yarn next:lint --fix ${relativePath}`;
+  });
+};
 
 const checkTypesNextCommand = () => "yarn next:check-types";
 
-const buildStylusEslintCommand = (filenames) =>
-  `yarn stylus:lint --fix ${filenames
-    .map((f) => path.relative(path.join("packages", "stylus"), f))
-    .join(" ")}`;
+const buildStylusEslintCommand = (filenames) => {
+  // Procesar 1 archivo a la vez
+  return filenames.map((filename) => {
+    const relativePath = path.relative(path.join("packages", "stylus"), filename);
+    return `yarn stylus:lint --fix ${relativePath}`;
+  });
+};
 
 module.exports = {
   "packages/nextjs/**/*.{ts,tsx}": [

@@ -45,7 +45,7 @@ export function DebugContracts() {
               {contractNames.map(contractName => (
                 <button
                   className="contract-tab-button"
-                  key={contractName}
+                  key={String(contractName)}
                   onClick={() => setSelectedContract(contractName)}
                   style={{
                     backgroundColor:
@@ -59,8 +59,8 @@ export function DebugContracts() {
                           : "1px solid rgba(0, 0, 0, 0.1)",
                   }}
                 >
-                  {contractName}
-                  {(contractsData[contractName] as GenericContract)?.external && (
+                  {String(contractName)}
+                  {(contractsData[String(contractName)] as GenericContract)?.external && (
                     <span className="tooltip tooltip-top tooltip-accent" data-tip="External contract">
                       <BarsArrowUpIcon className="h-4 w-4 cursor-pointer" />
                     </span>
@@ -71,7 +71,7 @@ export function DebugContracts() {
           )}
           {contractNames.map(contractName => (
             <ContractUI
-              key={contractName}
+              key={String(contractName)}
               contractName={contractName}
               className={contractName === selectedContract ? "" : "hidden"}
             />

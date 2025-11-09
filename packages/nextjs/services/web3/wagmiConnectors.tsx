@@ -21,7 +21,7 @@ rainbowkitBurnerWallet.rpcUrls = {
 };
 
 const wallets = [
-  ...(!targetNetworks.some(network => network.id !== (arbitrumNitro as chains.Chain).id) || !onlyLocalBurnerWallet
+  ...(!targetNetworks.some((network: chains.Chain) => network.id !== arbitrumNitro.id) || !onlyLocalBurnerWallet
     ? [rainbowkitBurnerWallet]
     : []),
   braveWallet,

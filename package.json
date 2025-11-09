@@ -28,6 +28,7 @@
     "next:check-types": "yarn workspace @ss/nextjs check-types",
     "next:format": "yarn workspace @ss/nextjs format",
     "next:lint": "yarn workspace @ss/nextjs lint",
+    "next:lint:fix": "yarn workspace @ss/nextjs lint:fix",
     "precommit": "lint-staged",
     "start": "yarn workspace @ss/nextjs dev",
     "stylus-verify": "yarn workspace @ss/stylus stylus-verify",

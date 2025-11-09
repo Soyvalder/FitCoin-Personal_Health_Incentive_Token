@@ -16,7 +16,7 @@ import {
 } from "~~/utils/scaffold-eth/contract";
 
 const getEvents = async (
-  getLogsParams: GetLogsParameters<AbiEvent | undefined, AbiEvent[] | undefined, boolean, BlockNumber, BlockNumber>,
+  getLogsParams: GetLogsParameters<any, any, boolean, BlockNumber, BlockNumber>,
   publicClient?: UsePublicClientReturnType<Config, number>,
   Options?: {
     blockData?: boolean;
@@ -272,7 +272,7 @@ export const useScaffoldEventHistory = <
 
   // remove duplicates
   const seenEvents = new Set<string>();
-  const combinedEvents = allEvents.filter(event => {
+  const combinedEvents = allEvents.filter((event: any) => {
     const eventKey = `${event?.transactionHash}-${event?.logIndex}-${event?.blockHash}`;
     if (seenEvents.has(eventKey)) {
       return false;
