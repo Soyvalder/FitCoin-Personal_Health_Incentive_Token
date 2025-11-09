@@ -5,12 +5,14 @@
   "workspaces": {
     "packages": [
       "packages/stylus",
-      "packages/nextjs"
+      "packages/nextjs",
+      "packages/hardhat"
     ]
   },
   "scripts": {
     "account": "yarn workspace @ss/stylus account",
-    "chain": "./nitro-devnode/start-chain-with-cors.sh",
+    "chain": "bash nitro-devnode/start-chain-with-cors.sh",
+    "chain:stylus": "bash nitro-devnode/start-chain-with-cors.sh --stylus",
     "clean-contracts": "yarn workspace @ss/stylus clean-contracts",
     "compile": "yarn workspace @ss/stylus compile",
     "deploy": "yarn workspace @ss/stylus deploy",
@@ -35,6 +37,7 @@
     "test": "yarn stylus:test",
     "vercel": "yarn workspace @ss/nextjs vercel",
     "vercel:yolo": "yarn workspace @ss/nextjs vercel:yolo",
+    "hardhat:compile": "yarn workspace @ss/hardhat compile",
     "verify": "yarn workspace @ss/stylus verify"
   },
   "devDependencies": {

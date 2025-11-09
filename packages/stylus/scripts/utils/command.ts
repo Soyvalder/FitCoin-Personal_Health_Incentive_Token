@@ -1,4 +1,5 @@
 import { spawn } from "child_process";
+import * as path from "path";
 import { DeploymentConfig, DeployOptions } from "./type";
 import {
   extractGasPriceFromOutput,
@@ -10,18 +11,20 @@ export async function buildDeployCommand(
   config: DeploymentConfig,
   deployOptions: DeployOptions,
 ) {
-  let baseCommand = `cargo stylus deploy --endpoint='${getRpcUrlFromChain(config.chain)}' --private-key='${config.privateKey}'`;
+  // Build base Stylus deploy args
+  const endpoint = getRpcUrlFromChain(config.chain);
+  let stylusArgs = `deploy --endpoint='${endpoint}' --private-key='${config.privateKey}'`;
 
   if (deployOptions.estimateGas) {
-    return `${baseCommand} --estimate-gas`;
+    stylusArgs += ` --estimate-gas`;
   }
 
   if (deployOptions.maxFee) {
-    baseCommand += ` --max-fee-per-gas-gwei=${deployOptions.maxFee}`;
+    stylusArgs += ` --max-fee-per-gas-gwei=${deployOptions.maxFee}`;
   }
 
   if (!deployOptions.verify) {
-    baseCommand += ` --no-verify`;
+    stylusArgs += ` --no-verify`;
   } else {
     if (
       deployOptions.constructorArgs &&
@@ -39,10 +42,45 @@ export async function buildDeployCommand(
     deployOptions.constructorArgs.length > 0 &&
     !deployOptions.isOrbit
   ) {
-    baseCommand += ` --constructor-args ${deployOptions.constructorArgs.map((arg) => `"${arg}"`).join(" ")} `;
+    stylusArgs += ` --constructor-args ${deployOptions.constructorArgs
+      .map((arg) => `"${arg}"`)
+      .join(" ")} `;
   }
 
-  return baseCommand;
+  // On Windows, run cargo stylus inside Docker to avoid MSVC linking issues
+  // Also, ensure the container can reach the host RPC by using host.docker.internal
+  const isWindows = process.platform === "win32";
+  const useDocker = isWindows || process.env["STYLUS_USE_DOCKER"] === "1";
+
+  if (!useDocker) {
+    return `cargo stylus ${stylusArgs}`;
+  }
+
+  // Override endpoint for Docker container networking
+  let dockerEndpoint = endpoint;
+  // Map localhost/127.0.0.1 to host.docker.internal for container connectivity on Windows
+  dockerEndpoint = dockerEndpoint.replace(
+    /http:\/\/(localhost|127\.0\.0\.1):(\d+)/,
+    "http://host.docker.internal:$2",
+  );
+  const dockerArgs = stylusArgs.replace(endpoint, dockerEndpoint);
+
+  // Resolve absolute path for volume mount (handles spaces in Windows paths)
+  const absContractFolder = path.resolve(config.contractFolder);
+
+  // Use official Rust image and install cargo-stylus inside the container to avoid GHCR auth issues
+  const image = "rust:1.81";
+
+  // Wrap in bash -lc inside container to preserve quoting and prep install
+  const dockerCmd =
+    `docker run --rm --add-host=host.docker.internal:host-gateway -v "${absContractFolder}":/work -w /work ${image} ` +
+    `bash -lc "apt-get update && apt-get install -y curl build-essential pkg-config && ` +
+    `curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain 1.81.0 && ` +
+    `export PATH="/usr/local/cargo/bin:$PATH" && rustup target add wasm32-unknown-unknown && ` +
+    `cargo install cargo-stylus && ` +
+    `cargo stylus ${dockerArgs}"`;
+
+  return dockerCmd;
 }
 
 export async function estimateGasPrice(

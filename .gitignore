@@ -14,3 +14,14 @@ node_modules
 !.vscode/settings.json
 .idea
 .vercel
+ 
+ # Hardhat generated outputs
+ packages/hardhat/artifacts/
+ packages/hardhat/cache/
+ 
+ # Build outputs
+ dist/
+ 
+ # Environment files
+ .env
+ packages/**/.env

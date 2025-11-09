@@ -4,6 +4,67 @@
  */
 import { GenericContractsDeclaration } from "../utils/scaffold-eth/contract";
 
-const deployedContracts = {} as const;
+const deployedContracts = {
+  421614: {
+    FitCoinToken: {
+      // Reemplaza por la dirección real tras el deploy
+      address: "0x4BF07E7522DeE6D83F8EE66D12e1E88d28Eb9D24",
+      abi: [
+        { type: "constructor", inputs: [], stateMutability: "nonpayable" },
+        {
+          type: "function",
+          name: "logActivity",
+          inputs: [
+            { name: "activityName", type: "string" },
+            { name: "tokensToEarn", type: "uint256" },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "redeemReward",
+          inputs: [
+            { name: "rewardName", type: "string" },
+            { name: "tokensToBurn", type: "uint256" },
+          ],
+          outputs: [],
+          stateMutability: "nonpayable",
+        },
+        {
+          type: "function",
+          name: "balanceOf",
+          inputs: [{ name: "account", type: "address" }],
+          outputs: [{ name: "", type: "uint256" }],
+          stateMutability: "view",
+        },
+        { type: "function", name: "name", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+        { type: "function", name: "symbol", inputs: [], outputs: [{ type: "string" }], stateMutability: "view" },
+        { type: "function", name: "decimals", inputs: [], outputs: [{ type: "uint8" }], stateMutability: "view" },
+        { type: "function", name: "totalSupply", inputs: [], outputs: [{ type: "uint256" }], stateMutability: "view" },
+        {
+          type: "event",
+          name: "ActivityCompleted",
+          inputs: [
+            { name: "user", type: "address", indexed: true },
+            { name: "activityName", type: "string", indexed: false },
+            { name: "tokensEarned", type: "uint256", indexed: false },
+            { name: "timestamp", type: "uint256", indexed: false },
+          ],
+        },
+        {
+          type: "event",
+          name: "RewardRedeemed",
+          inputs: [
+            { name: "user", type: "address", indexed: true },
+            { name: "rewardName", type: "string", indexed: false },
+            { name: "tokensBurned", type: "uint256", indexed: false },
+            { name: "timestamp", type: "uint256", indexed: false },
+          ],
+        },
+      ],
+    },
+  },
+} as const satisfies GenericContractsDeclaration;
 
-export default deployedContracts satisfies GenericContractsDeclaration;
+export default deployedContracts;
